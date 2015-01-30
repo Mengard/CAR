@@ -21,7 +21,8 @@ public class FtpRequest extends Thread {
 		sendMessage("220 Service ready for new user.");
 		process();
 	}
-	/* test */
+	
+	
 	void process() {
 		while (true) {
 			System.out.println("process");
@@ -47,6 +48,11 @@ public class FtpRequest extends Thread {
 		}
 	}
 
+	/**
+	 * Process user.
+	 *
+	 * @param username the username
+	 */
 	void processUSER(String username) {
 		System.out.println("processUSER " + username);
 		// if (this.username != null) {
@@ -62,6 +68,11 @@ public class FtpRequest extends Thread {
 		}
 	}
 
+	/**
+	 * Process pass.
+	 *
+	 * @param password the password
+	 */
 	void processPASS(String password) {
 		System.out.println("processPASS " + password);
 		if (this.username == null) {
