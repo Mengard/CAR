@@ -10,8 +10,15 @@ public class FtpRequest extends Thread {
 	private Socket s;
 	private String username;
 	private boolean logged;
+	private static String OS;
 
+	/**
+	 * Instantiates a new ftp request.
+	 *
+	 * @param s the socket
+	 */
 	public FtpRequest(Socket s) {
+		OS = System.getProperty("os.name").toLowerCase();
 		System.out.println("start communication");
 		this.s = s;
 	}
@@ -21,8 +28,11 @@ public class FtpRequest extends Thread {
 		sendMessage("220 Service ready for new user.");
 		process();
 	}
-	
-	
+
+
+	/**
+	 * manage the different kind of messages.
+	 */
 	void process() {
 		while (true) {
 			System.out.println("process");
@@ -39,7 +49,15 @@ public class FtpRequest extends Thread {
 					processPASS(args[1]);
 					break;
 				case "SYST":
-					sendMessage("215 Windows_NT");
+					if (OS.indexOf("win") >= 0) {
+						sendMessage("215 Windows_NT");
+					} else if (OS.indexOf("mac") >= 0) {
+						sendMessage("215 MACOS");
+					} else if (OS.indexOf("nix") >= 0 || OS.indexOf("nux") >= 0 || OS.indexOf("aix") > 0 ) {
+						sendMessage("215 UNIX Type: L8");
+					} else {
+						sendMessage("215 Unknown");
+					}
 					break;
 				default:
 					sendMessage("501 Syntax error in parameters or arguments.");
@@ -49,7 +67,7 @@ public class FtpRequest extends Thread {
 	}
 
 	/**
-	 * Process user.
+	 * Login message.
 	 *
 	 * @param username the username
 	 */
@@ -69,7 +87,7 @@ public class FtpRequest extends Thread {
 	}
 
 	/**
-	 * Process pass.
+	 * Pass message.
 	 *
 	 * @param password the password
 	 */
@@ -99,6 +117,9 @@ public class FtpRequest extends Thread {
 
 	}
 
+	/**
+	 * Quit message.
+	 */
 	void processQUIT() {
 		try {
 			s.close();
@@ -110,8 +131,7 @@ public class FtpRequest extends Thread {
 	/**
 	 * Used to send a message
 	 * 
-	 * @param str
-	 *            the message
+	 * @param str the message
 	 */
 	void sendMessage(String str) {
 		try {
