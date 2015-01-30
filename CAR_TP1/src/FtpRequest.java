@@ -21,7 +21,7 @@ public class FtpRequest extends Thread {
 		sendMessage("220 Service ready for new user.");
 		process();
 	}
-
+	/* test */
 	void process() {
 		while (true) {
 			System.out.println("process");
