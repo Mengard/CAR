@@ -17,8 +17,8 @@ public class Server {
 		users.put("Wyll", "I4M");
 
 		try {
-			serverCommand = new ServerSocket(1024);
-			serverData = new ServerSocket(1025);
+			serverCommand = new ServerSocket(1777);
+			serverData = new ServerSocket(1778);
 			new AcceptingThread().start();
 		} catch (IOException e) {
 			e.printStackTrace();
