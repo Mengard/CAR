@@ -33,6 +33,7 @@ public class FtpRequest extends Thread {
 
     /**
      * manage the different kind of messages.
+     * ajout du code
      */
     void process() {
         while (true) {
