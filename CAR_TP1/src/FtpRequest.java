@@ -110,11 +110,11 @@ public class FtpRequest extends Thread {
     }
 
     void processSYST() {
-        if (OS.indexOf("win") >= 0) {
+        if (OS.contains("win")) {
             sendMessage("215 Windows_NT");
-        } else if (OS.indexOf("mac") >= 0) {
+        } else if (OS.contains("mac")) {
             sendMessage("215 MACOS");
-        } else if (OS.indexOf("nix") >= 0 || OS.indexOf("nux") >= 0 || OS.indexOf("aix") > 0) {
+        } else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
             sendMessage("215 UNIX Type: L8");
         } else {
             sendMessage("215 Unknown");
