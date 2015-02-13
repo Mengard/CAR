@@ -9,6 +9,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+
 public class FtpRequest extends Thread {
 	private Socket s;
 	private String username;
