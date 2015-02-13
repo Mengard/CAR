@@ -3,7 +3,7 @@ import java.net.ServerSocket;
 import java.util.HashMap;
 
 public class Server {
-
+	static String default_pwd = "C:\\";
 	static ServerSocket serverCommand;
 	static ServerSocket serverData;
 
