@@ -13,6 +13,7 @@ public class FtpRequest extends Thread {
     private static String OS;
     private String path;
 
+
     /**
      * Instantiates a new ftp request.
      *
@@ -22,6 +23,7 @@ public class FtpRequest extends Thread {
         OS = System.getProperty("os.name").toLowerCase();
         System.out.println("start communication");
         this.s = s;
+
     }
 
     @Override
@@ -33,7 +35,6 @@ public class FtpRequest extends Thread {
 
     /**
      * manage the different kind of messages.
-     * ajout du code
      */
     void process() {
         while (true) {
