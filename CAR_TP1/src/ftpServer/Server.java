@@ -9,7 +9,6 @@ import java.util.HashMap;
 
 public class Server {
 	static ServerSocket serverCommand;
-	static ServerSocket serverData;
     private static File file;
 
 	// username -> password
@@ -30,7 +29,6 @@ public class Server {
         if(file.exists() && file.isDirectory()) {
             try {
                 serverCommand = new ServerSocket(1779);
-                serverData = new ServerSocket(1780);
                 new AcceptingThread().start();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -48,7 +46,6 @@ public class Server {
 				try {
 					System.out.println("waiting");
 					new FtpRequest(serverCommand.accept(), file).start();
-                    new FtpRequest(serverData.accept(), file).start();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

@@ -8,12 +8,15 @@ import java.net.Socket;
 
 
 public class FtpRequest extends Thread {
+    private ServerSocket ss;
     private Socket s;
     private Socket data;
     private String username;
     private boolean logged;
     private static String OS;
     private File path;
+    private boolean isPassive;
+    int portActive;
 
     /**
      * Instantiates a new ftp request.
@@ -83,12 +86,6 @@ public class FtpRequest extends Thread {
         }
     }
 
-    private void processEPSV() {
-        sendMessage("229 Entering Exten" +
-                "ded Passive Mode (|||1780|)");
-    }
-
-
     /**
      * Login message.
      *
@@ -152,9 +149,23 @@ public class FtpRequest extends Thread {
     }
 
     private void processCWD(String args) {
-        path = new File(args);
+        String oldPath = path.getAbsolutePath();
+        if (args.equals("..")) {
+            path = path.getParentFile();
+        } else {
+            path = new File(args);
+        }
         if (path.exists() && path.isDirectory()) {
             sendMessage("250 CWD command successfull");
+        } else {
+            path = new File(oldPath + "\\" + args);
+            System.out.println(path.getAbsolutePath());
+            if (path.exists() && path.isDirectory()) {
+                sendMessage("250 CWD command successfull");
+            } else {
+                path = new File(oldPath);
+                sendMessage("550" + path + " No such file or directory.");
+            }
         }
     }
 
@@ -168,23 +179,49 @@ public class FtpRequest extends Thread {
 
     void processEPRT(String args) {
         String[] connectionString = args.split("\\|");
+        portActive = Integer.parseInt(connectionString[3]);
+        this.isPassive = false;
+        sendMessage("229 Entering Exten" +
+                "ded Passive Mode (|||" + portActive + "|)");
 
-        try {
-            this.data = new Socket("127.0.0.1", 1780);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    }
+
+
+    private void processEPSV() {
+        this.isPassive = true;
+        sendMessage("229 Entering Exten" +
+                "ded Passive Mode (|||1780|)");
 
     }
 
     void processLIST() {
-
-        try {
-            String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
-            sendMessage(daPath, data);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (isPassive) {
+            try {
+                sendMessage("150 File status okay; about to open data connection.");
+                this.ss = new ServerSocket(1780);
+                this.data = ss.accept();
+                String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
+                sendMessage(daPath, data);
+                sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
+                data.close();
+                ss.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            try {
+                String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
+                this.data = new Socket("127.0.0.1", portActive);
+                sendMessage("150 File status okay; about to open data connection.");
+                //ToDo ajouter gestion adresse client
+                sendMessage(daPath, data);
+                sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
+                data.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+
     }
 
     /**
@@ -218,7 +255,7 @@ public class FtpRequest extends Thread {
      * Used to send a message
      *
      * @param str the message
-     * @param s the socket
+     * @param s   the socket
      */
     void sendMessage(String str, Socket s) {
         try {
@@ -227,7 +264,7 @@ public class FtpRequest extends Thread {
             pw.println(str);
             pw.flush();
         } catch (Exception e) {
-           e.printStackTrace();
+            e.printStackTrace();
             try {
                 s.close();
             } catch (IOException e1) {
