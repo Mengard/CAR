@@ -1,22 +1,21 @@
 package ftpServer;
 
-import com.sun.xml.internal.bind.v2.TODO;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-
+import java.net.UnknownHostException;
 
 public class FtpRequest extends Thread {
+    private static String OS;
+    int portActive;
+    String clientActive;
     private ServerSocket ss;
     private Socket s;
     private Socket data;
     private String username;
     private boolean logged;
-    private static String OS;
     private File path;
     private boolean isPassive;
-    int portActive;
 
     /**
      * Instantiates a new ftp request.
@@ -29,6 +28,17 @@ public class FtpRequest extends Thread {
         path = file;
         System.out.println("start communication with a " + OS);
         this.s = s;
+    }
+
+    /**
+     * *
+     *
+     * @param is
+     * @return
+     */
+    static String convertStreamToString(java.io.InputStream is) {
+        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "";
     }
 
     @Override
@@ -44,10 +54,10 @@ public class FtpRequest extends Thread {
         while (true) {
             System.out.println("process");
             String commande = receiveMessage();
-            String[] args = commande.split(" ");
-            if (args.length > 2) {
-                sendMessage("500 Syntax error, command unrecognized. This may include errors such as command line too long.");
+            if (commande == null) {
+                processQUIT();
             } else {
+                String[] args = commande.split(" ", 2);
                 switch (args[0]) {
                     case "USER":
                         processUSER(args[1]);
@@ -70,11 +80,25 @@ public class FtpRequest extends Thread {
                     case "CWD":
                         processCWD(args[1]);
                         break;
+                    case "CDUP":
+                        processCWD("..");
                     case "EPSV":
                         processEPSV();
                         break;
                     case "EPRT":
                         processEPRT(args[1]);
+                        break;
+                    case "PASV":
+                        processPASV();
+                        break;
+                    case "PORT":
+                        processPORT(args[1]);
+                        break;
+                    case "RETR":
+                        processRETR(args[1]);
+                        break;
+                    case "STOR":
+                        processSTOR(args[1]);
                         break;
                     case "QUIT":
                         processQUIT();
@@ -93,11 +117,6 @@ public class FtpRequest extends Thread {
      */
     void processUSER(String username) {
         System.out.println("processUSER " + username);
-        // if (this.username != null) {
-        // sendMessage("Error username already defined");
-        // } else if (logged) {
-        // sendMessage("Error already logged in");
-        // } else
         if (Server.users.containsKey(username)) {
             this.username = username;
             sendMessage("331 User name okay, need password.");
@@ -126,7 +145,6 @@ public class FtpRequest extends Thread {
         }
     }
 
-
     void processSYST() {
         if (OS.contains("win")) {
             sendMessage("215 Windows_NT");
@@ -148,7 +166,7 @@ public class FtpRequest extends Thread {
         sendMessage("200 action successfull");
     }
 
-    private void processCWD(String args) {
+    void processCWD(String args) {
         String oldPath = path.getAbsolutePath();
         if (args.equals("..")) {
             path = path.getParentFile();
@@ -169,59 +187,115 @@ public class FtpRequest extends Thread {
         }
     }
 
-    void processRETR() {
-        //TODO
+    void processRETR(String arg) {
+
+        try {
+            FileInputStream fIS = new FileInputStream(path.getPath() + "\\" + arg);
+            if (isPassive) {
+                try {
+                    //ouverture de la connection
+                    sendMessage("150 File status okay; about to open data connection.");
+                    this.ss = new ServerSocket(1780);
+                    this.data = ss.accept();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            } else {
+                this.data = new Socket(clientActive, portActive);
+            }
+            //envoie du ficher
+            sendFile(fIS, data);
+
+            //fermeture de la connection
+            sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
+            data.close();
+            ss.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    void processSTOR() {
-        //TODO
+    void processSTOR(String arg) {
+
+        try {
+            FileOutputStream fOS = new FileOutputStream(path.getPath() + "\\" + arg);
+            if (isPassive) {
+                try {
+                    //ouverture de la connection
+                    sendMessage("150 File status okay; about to open data connection.");
+                    this.ss = new ServerSocket(1780);
+                    this.data = ss.accept();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            } else {
+                this.data = new Socket(clientActive, portActive);
+            }
+            //envoie du ficher
+            receiveFile(fOS, data);
+
+            //fermeture de la connection
+            sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
+            data.close();
+            ss.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void processPORT(String arg) {
+        String[] split = arg.split(",");
+        clientActive = split[0] + "." + split[1] + "." + split[2] + "." + split[3];
+        portActive = Integer.parseInt(split[4]) * 256 + Integer.parseInt(split[5]);
+        sendMessage("200 PORT command successfull");
     }
 
     void processEPRT(String args) {
         String[] connectionString = args.split("\\|");
+        clientActive = connectionString[2];
         portActive = Integer.parseInt(connectionString[3]);
         this.isPassive = false;
         sendMessage("229 Entering Exten" +
-                "ded Passive Mode (|||" + portActive + "|)");
+                "ded Actif Mode (||" + clientActive + "|" + portActive + "|)");
 
     }
+    
+    void processPASV() {
+        this.isPassive = true;
+        sendMessage("227 Entering Passive Mode (" + s.getLocalAddress().toString().replaceAll("\\.", ",").substring(1) + "," + 1780 / 256 + "," + 1780 % 256 +")");
+    }
 
-
-    private void processEPSV() {
+    void processEPSV() {
         this.isPassive = true;
         sendMessage("229 Entering Exten" +
                 "ded Passive Mode (|||1780|)");
-
     }
 
     void processLIST() {
-        if (isPassive) {
-            try {
-                sendMessage("150 File status okay; about to open data connection.");
+
+        try {
+            //ouverture socket data
+            sendMessage("150 File status okay; about to open data connection.");
+            if (isPassive) {
                 this.ss = new ServerSocket(1780);
                 this.data = ss.accept();
-                String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
-                sendMessage(daPath, data);
-                sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
-                data.close();
-                ss.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } else {
+                this.data = new Socket(clientActive, portActive);
             }
-        } else {
-            try {
-                String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
-                this.data = new Socket("127.0.0.1", portActive);
-                sendMessage("150 File status okay; about to open data connection.");
-                //ToDo ajouter gestion adresse client
-                sendMessage(daPath, data);
-                sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
-                data.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
 
+            //envoie liste
+            String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
+            sendMessage(daPath, data);
+
+            //fermeture socket data
+            sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
+            data.close();
+            if (isPassive) ss.close();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -241,14 +315,7 @@ public class FtpRequest extends Thread {
      * @param str the message
      */
     void sendMessage(String str) {
-        try {
-            OutputStream os = s.getOutputStream();
-            PrintWriter pw = new PrintWriter(os);
-            pw.println(str);
-            pw.flush();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        sendMessage(str, s);
     }
 
     /**
@@ -263,6 +330,30 @@ public class FtpRequest extends Thread {
             PrintWriter pw = new PrintWriter(os);
             pw.println(str);
             pw.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                s.close();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * *
+     *
+     * @param fIS
+     * @param s
+     */
+    void sendFile(FileInputStream fIS, Socket s) {
+        try {
+            OutputStream os = s.getOutputStream();
+            byte[] buffer = new byte[1024];
+            int nbBytes = 0;
+            while ((nbBytes = fIS.read(buffer)) != -1) {
+                os.write(buffer, 0, nbBytes);
+            }
         } catch (Exception e) {
             e.printStackTrace();
             try {
@@ -292,8 +383,22 @@ public class FtpRequest extends Thread {
         }
     }
 
-    static String convertStreamToString(java.io.InputStream is) {
-        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
-        return s.hasNext() ? s.next() : "";
+    /**
+     * *
+     *
+     * @param fOS
+     * @param data
+     */
+    void receiveFile(FileOutputStream fOS, Socket data) {
+        try {
+            InputStream is = data.getInputStream();
+            byte[] buffer = new byte[1024];
+            int nbBytes = 0;
+            while ((nbBytes = is.read(buffer)) != -1) {
+                fOS.write(buffer, 0, nbBytes);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
