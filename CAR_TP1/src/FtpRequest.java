@@ -1,3 +1,5 @@
+import com.sun.xml.internal.bind.v2.TODO;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -5,9 +7,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 
 public class FtpRequest extends Thread {
@@ -20,11 +21,13 @@ public class FtpRequest extends Thread {
 	/**
 	 * Instantiates a new ftp request.
 	 *
-	 * @param s
-	 *            the socket
-	 */
-	public FtpRequest(Socket s) {
+     * @param s
+     *            the socket
+     * @param file
+     */
+	public FtpRequest(Socket s, File file) {
 		OS = System.getProperty("os.name").toLowerCase();
+        path = file;
 		System.out.println("start communication with a " + OS);
 		this.s = s;
 	}
@@ -59,10 +62,19 @@ public class FtpRequest extends Thread {
 				case "PWD":
 					processPWD();
 					break;
+                case "LIST":
+                    processLIST();
+                    break;
 				case "TYPE":
 					processType();
 					break;
-				case "QUIT":
+                case "CWD":
+				    processCWD(args[1]);
+                    break;
+                case "EPRT":
+                    processEPRT(args[1]);
+                    break;
+                case "QUIT":
 					processQUIT();
 					break;
 				default:
@@ -72,7 +84,9 @@ public class FtpRequest extends Thread {
 		}
 	}
 
-	/**
+
+
+    /**
 	 * Login message.
 	 *
 	 * @param username
@@ -108,7 +122,6 @@ public class FtpRequest extends Thread {
 		} else if (Server.users.get(this.username).equals(password)) {
 			System.out.println("Logged in");
 			logged = true;
-			path = new File(Server.default_pwd);
 			sendMessage("230 User logged in, proceed.");
 		} else {
 			sendMessage("Bad passwod");
@@ -129,24 +142,44 @@ public class FtpRequest extends Thread {
 	}
 
 	void processPWD() {
-		System.out.println("THIS IS PATH :" + path.getPath());
-		sendMessage("257 " + path.getPath());
+        System.out.println("257 \"" + path.getPath() + "\" is current directory");
+        sendMessage("257 " + path.getPath() + " is current directory");
 	}
 
 	void processType() {
 		sendMessage("200 action successfull");
 	}
 
-	void processRETR() {
+    private void processCWD(String args) {
+        path = new File(args);
+        if(path.exists() && path.isDirectory()) {
+            sendMessage("250 CWD command successfull");
+        }
+    }
 
+	void processRETR() {
+        //TODO
 	}
 
 	void processSTOR() {
-
+        //TODO
 	}
 
-	void processLIST() {
+    void processEPRT(String args){
+        String[] connectionString = args.split("\\|");
+        try {
+            ServerSocket ss = new ServerSocket(Integer.parseInt(connectionString[3]));
+            Socket data = ss.accept();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+        
 
+    }
+    
+	void processLIST() {
+        System.out.println(path.list());
 	}
 
 	/**

@@ -1,28 +1,39 @@
+import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.HashMap;
 
 public class Server {
-	static String default_pwd = "C:\\";
 	static ServerSocket serverCommand;
 	static ServerSocket serverData;
+    private static File file;
 
 	// username -> password
 	static HashMap<String, String> users = new HashMap<String, String>();
 
-	public static void main(String[] zero) {
+	public static void main(String[] args) {
 
 		users.put("anonymous", "anonymous");
 		users.put("Mengard", "Dragnem");
 		users.put("Wyll", "I4M");
-
-		try {
-			serverCommand = new ServerSocket(1779);
-			serverData = new ServerSocket(1780);
-			new AcceptingThread().start();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+        
+        if (args.length != 1){
+            System.out.println("BAD USAGE");
+            System.exit(0);
+        }
+        
+        file = new File(args[0]);
+        if(file.exists() && file.isDirectory()) {
+            try {
+                serverCommand = new ServerSocket(1779);
+                serverData = new ServerSocket(1780);
+                new AcceptingThread().start();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("The argument is not the path of a directory");
+        }
 	}
 
 	private static class AcceptingThread extends Thread {
@@ -32,8 +43,8 @@ public class Server {
 			while (true) {
 				try {
 					System.out.println("waiting");
-					// new FtpRequest(serverData.accept()).start();
-					new FtpRequest(serverCommand.accept()).start();
+					new FtpRequest(serverCommand.accept(), file).start();
+                    new FtpRequest(serverData.accept(), file).start();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
