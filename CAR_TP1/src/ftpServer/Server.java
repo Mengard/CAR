@@ -5,13 +5,29 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.HashMap;
 
+
+/**
+ * Main class of the FTP server
+ */
 public class Server {
+    /**
+     * ServerSocket used for the Command Port
+     */
     static ServerSocket serverCommand;
+    /**
+     * Map containing the different username and password used for testing purpose
+     */
+    static HashMap<String, String> users = new HashMap<>();
+    /**
+     * Current File used to navigate within the server
+     */
     private static File file;
 
-    // username -> password
-    static HashMap<String, String> users = new HashMap<>();
-
+    /**
+     * Starts the server
+     *
+     * @param args the arguments of the program
+     */
     public static void main(String[] args) {
 
         users.put("anonymous", "anonymous");
@@ -19,7 +35,7 @@ public class Server {
         users.put("Wyll", "I4M");
 
         if (args.length != 1) {
-            System.out.println("BAD USAGE");
+            System.out.println("Correct usage is : java Server [Current path]");
             System.exit(0);
         }
 
@@ -36,8 +52,10 @@ public class Server {
         }
     }
 
+    /**
+     * Thread starting a FtpRequest to start listening on the server*
+     */
     private static class AcceptingThread extends Thread {
-
         @Override
         public void run() {
             while (true) {

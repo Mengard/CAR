@@ -5,6 +5,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+/**
+ * *
+ */
 public class FtpRequest extends Thread {
     private static String OS;
     int portActive;
