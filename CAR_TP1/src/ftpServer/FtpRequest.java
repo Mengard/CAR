@@ -3,20 +3,55 @@ package ftpServer;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 
 /**
- * *
+ * Class used to manage the different command received on the command port
  */
 public class FtpRequest extends Thread {
+    
+    /**
+     *  Contains the OS on wich the server is running
+     */
     private static String OS;
-    int portActive;
-    String clientActive;
+    
+    /**
+     * Port used for the active mode  
+     */
+    private int portActive;
+
+    /**
+     * Hostname used for the active mode
+     */
+    private String clientActive;
+
+    /**
+     * Server socket used for the passive mode
+     */
     private ServerSocket ss;
+
+    /**
+     * Socket used for the command port
+     */
     private Socket s;
+
+    /**
+     * Socket used for the data port
+     */
     private Socket data;
+
+    /**
+     * User name for the current user
+     */
     private String username;
+
+    /**
+     * true if the user is logged in 
+     */
     private boolean logged;
+
+    /**
+     * Contains the current file for navigation purpose
+     */
     private File path;
     private boolean isPassive;
 
@@ -24,7 +59,7 @@ public class FtpRequest extends Thread {
      * Instantiates a new ftp request.
      *
      * @param s    the socket
-     * @param file
+     * @param file the current file
      */
     public FtpRequest(Socket s, File file) {
         OS = System.getProperty("os.name").toLowerCase();
@@ -34,16 +69,19 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * *
+     * Convert an InputStream to a String
      *
-     * @param is
-     * @return
+     * @param is the InputStream to convert
+     * @return the String converted
      */
-    static String convertStreamToString(java.io.InputStream is) {
+    private static String convertStreamToString(java.io.InputStream is) {
         java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
         return s.hasNext() ? s.next() : "";
     }
 
+    /**
+     * Send the Welcome message and start listening for commands
+     */
     @Override
     public void run() {
         sendMessage("220 Welcome to the Ghigny and Leemans FTP Server");
@@ -51,9 +89,10 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * manage the different kind of messages. ajout du code
+     * Process the differents commands received on the port command
+     * and redirect them to methods 
      */
-    void process() {
+    private void process() {
         while (true) {
             System.out.println("process");
             String commande = receiveMessage();
@@ -114,11 +153,11 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * Login message.
+     * Process the login
      *
      * @param username the username
      */
-    void processUSER(String username) {
+    private void processUSER(String username) {
         System.out.println("processUSER " + username);
         if (Server.users.containsKey(username)) {
             this.username = username;
@@ -129,11 +168,11 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * Pass message.
+     * Process the password verification
      *
      * @param password the password
      */
-    void processPASS(String password) {
+    private void processPASS(String password) {
         System.out.println("processPASS " + password);
         if (this.username == null) {
             sendMessage("332 Need account for login.");
@@ -148,7 +187,10 @@ public class FtpRequest extends Thread {
         }
     }
 
-    void processSYST() {
+    /**
+     * Process the OS return code
+     */
+    private void processSYST() {
         if (OS.contains("win")) {
             sendMessage("215 Windows_NT");
         } else if (OS.contains("mac")) {
@@ -161,15 +203,26 @@ public class FtpRequest extends Thread {
         }
     }
 
-    void processPWD() {
+    /**
+     * Send the current path
+     */
+    private void processPWD() {
         sendMessage("257 " + path.getPath() + " is current directory");
     }
 
-    void processType() {
+    /**
+     * Process the Type command 
+     */
+    private void processType() {
         sendMessage("200 action successfull");
     }
 
-    void processCWD(String args) {
+    /**
+     * Change the working directory
+     *
+     * @param args the path to move to
+     */
+    private void processCWD(String args) {
         String oldPath = path.getAbsolutePath();
         if (args.equals("..")) {
             path = path.getParentFile();
@@ -190,8 +243,11 @@ public class FtpRequest extends Thread {
         }
     }
 
-    void processRETR(String arg) {
-
+    /**
+     * Process the RETR command used to download a file from the server
+     * @param arg the path of the file to retreive
+     */
+    private void processRETR(String arg) {
         try {
             FileInputStream fIS = new FileInputStream(path.getPath() + "\\" + arg);
             if (isPassive) {
@@ -218,7 +274,11 @@ public class FtpRequest extends Thread {
         }
     }
 
-    void processSTOR(String arg) {
+    /**
+     * Process the STOR command used to upload a file to the server
+     * @param arg the path of the file to store
+     */
+    private void processSTOR(String arg) {
 
         try {
             FileOutputStream fOS = new FileOutputStream(path.getPath() + "\\" + arg);
@@ -246,14 +306,23 @@ public class FtpRequest extends Thread {
         }
     }
 
-    void processPORT(String arg) {
+    /**
+     * Start the active mode with IPV4
+     * @param arg the hostname and port on wich to connect for data sending
+     */
+    private void processPORT(String arg) {
         String[] split = arg.split(",");
         clientActive = split[0] + "." + split[1] + "." + split[2] + "." + split[3];
         portActive = Integer.parseInt(split[4]) * 256 + Integer.parseInt(split[5]);
+        this.isPassive = false;
         sendMessage("200 PORT command successfull");
     }
 
-    void processEPRT(String args) {
+    /**
+     * Start the active mode with IPV6
+     * @param args the hostname and port on wich to connect for data sending
+     */
+    private void processEPRT(String args) {
         String[] connectionString = args.split("\\|");
         clientActive = connectionString[2];
         portActive = Integer.parseInt(connectionString[3]);
@@ -262,22 +331,30 @@ public class FtpRequest extends Thread {
                 "ded Actif Mode (||" + clientActive + "|" + portActive + "|)");
 
     }
-    
-    void processPASV() {
+
+    /**
+     * Start the passive mode with IPV4
+     */
+    private void processPASV() {
         this.isPassive = true;
         sendMessage("227 Entering Passive Mode (" + s.getLocalAddress().toString().replaceAll("\\.", ",").substring(1) + "," + 1780 / 256 + "," + 1780 % 256 +")");
     }
 
-    void processEPSV() {
+    /**
+     * Start the passive mode with IPV6
+     */
+    private void processEPSV() {
         this.isPassive = true;
         sendMessage("229 Entering Exten" +
                 "ded Passive Mode (|||1780|)");
     }
 
-    void processLIST() {
-
+    /**
+     * Send the current directory's list of files
+     */
+    private void processLIST() {
         try {
-            //ouverture socket data
+            //Data socket opening
             sendMessage("150 File status okay; about to open data connection.");
             if (isPassive) {
                 this.ss = new ServerSocket(1780);
@@ -286,16 +363,14 @@ public class FtpRequest extends Thread {
                 this.data = new Socket(clientActive, portActive);
             }
 
-            //envoie liste
+            //list sending
             String daPath = convertStreamToString(Runtime.getRuntime().exec(new String[]{"cmd", "/c", "dir", path.getPath()}).getInputStream());
             sendMessage(daPath, data);
 
-            //fermeture socket data
+            //Data socket closing
             sendMessage("226 Closing data connection. Requested file action successful (for example, file transfer or file abort).");
             data.close();
             if (isPassive) ss.close();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -304,7 +379,7 @@ public class FtpRequest extends Thread {
     /**
      * Quit message.
      */
-    void processQUIT() {
+    private void processQUIT() {
         try {
             s.close();
         } catch (IOException e) {
@@ -313,21 +388,21 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * Used to send a message
+     * Used to send a message trought the command port
      *
-     * @param str the message
+     * @param str the message to send
      */
-    void sendMessage(String str) {
+    private void sendMessage(String str) {
         sendMessage(str, s);
     }
 
     /**
-     * Used to send a message
+     * Used to send a message trought a specific socket
      *
-     * @param str the message
-     * @param s   the socket
+     * @param str the message to send
+     * @param s   the socket to use
      */
-    void sendMessage(String str, Socket s) {
+    private void sendMessage(String str, Socket s) {
         try {
             OutputStream os = s.getOutputStream();
             PrintWriter pw = new PrintWriter(os);
@@ -344,12 +419,12 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * *
+     * Used to send a file trought a specific socket
      *
-     * @param fIS
-     * @param s
+     * @param fIS the FileInputStream to send
+     * @param s   the socket to use
      */
-    void sendFile(FileInputStream fIS, Socket s) {
+    private void sendFile(FileInputStream fIS, Socket s) {
         try {
             OutputStream os = s.getOutputStream();
             byte[] buffer = new byte[1024];
@@ -370,9 +445,9 @@ public class FtpRequest extends Thread {
     /**
      * Used to wait for a message
      *
-     * @return the message
+     * @return the message received
      */
-    String receiveMessage() {
+    private String receiveMessage() {
         try {
             InputStream is = s.getInputStream();
             InputStreamReader isr = new InputStreamReader(is);
@@ -387,12 +462,12 @@ public class FtpRequest extends Thread {
     }
 
     /**
-     * *
+     * Used to receive a file trought a specific socket
      *
-     * @param fOS
-     * @param data
+     * @param fOS the FileOutputStream in wich to write
+     * @param data the socket to use
      */
-    void receiveFile(FileOutputStream fOS, Socket data) {
+    private void receiveFile(FileOutputStream fOS, Socket data) {
         try {
             InputStream is = data.getInputStream();
             byte[] buffer = new byte[1024];

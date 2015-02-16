@@ -53,7 +53,7 @@ public class Server {
     }
 
     /**
-     * Thread starting a FtpRequest to start listening on the server*
+     * Thread starting a FtpRequest to start listening on the server
      */
     private static class AcceptingThread extends Thread {
         @Override
